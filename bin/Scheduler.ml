@@ -70,15 +70,30 @@ type message
     | ScheduleTest of (TimeOfDay.t * int)
     | ScheduleEvent of Event.t
 
-let rec perform (queue : EventQueue.t) = 
+let rec perform 
+        (events_for_tomorrow : Event.t Batteries.Vect.t ref ) 
+        (queue : EventQueue.t) = 
     let open TimeOfDay in
     match EventQueue.top queue with 
-    | None -> of_hms 24 0 0 - now () |> to_seconds |> float_of_int
-    | Some {time ; action; _} -> 
+    | None -> 
+        let seconds_until_midnight =  of_hms 24 0 0 - now () |> to_seconds in 
+        let _23_hours_in_seconds = of_hms 23 0 0 |> to_seconds in 
+        if seconds_until_midnight > _23_hours_in_seconds 
+        then (* It't tomorrow. Add back all the events *)
+            let _ = Batteries.Vect.map 
+                (fun event -> EventQueue.insert event queue)
+                (!events_for_tomorrow)
+            in
+            events_for_tomorrow := Batteries.Vect.empty;
+            perform ()
+        else (* wait for tomorrow *)
+            float_of_int seconds_until_midnight
+    | Some evt@{time ; action; _} -> 
         let seconds_until  = to_seconds (time - now ()) in 
         if seconds_until < 1 
         then (
-            let _ = EventQueue.pop queue in (* TODO: store value for tomorrow *)
+            let  _ = EventQueue.pop queue in (* TODO: store value for tomorrow *)
+            events_for_tomorrow := Batteries.Vect.append evt (!events_for_tomorrow);
             action ();
             perform queue
         )
