@@ -1,0 +1,4 @@
+(executable
+ (public_name pixeml)
+ (name main)
+ (libraries pixeml dream batteries))
