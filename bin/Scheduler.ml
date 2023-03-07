@@ -85,17 +85,17 @@ let rec perform
                 (!events_for_tomorrow)
             in
             events_for_tomorrow := Batteries.Vect.empty;
-            perform ()
+            perform events_for_tomorrow queue
         else (* wait for tomorrow *)
             float_of_int seconds_until_midnight
-    | Some evt@{time ; action; _} -> 
+    | Some ({time ; action; _} as evt) -> 
         let seconds_until  = to_seconds (time - now ()) in 
         if seconds_until < 1 
         then (
             let  _ = EventQueue.pop queue in (* TODO: store value for tomorrow *)
             events_for_tomorrow := Batteries.Vect.append evt (!events_for_tomorrow);
             action ();
-            perform queue
+            perform events_for_tomorrow queue
         )
         else 
             float_of_int seconds_until 
@@ -119,8 +119,8 @@ let test_event time id =
 
 let scheduler (message_in : message Lwt_mvar.t) = 
     let queue = EventQueue.empty () in
-    
-    (** 
+    let events_for_tomorrow = ref Batteries.Vect.empty in 
+    (*
         Test events to ensure the scheduler is working properly; 
         these 5 events should be executed in the order of their ids *)
     let _ = List.map 
@@ -131,12 +131,13 @@ let scheduler (message_in : message Lwt_mvar.t) =
             (now () + of_hms 0 0 30, 4);
             (now () + of_hms 0 0 10, 2);
             (now () + of_hms 0 0 5, 1);
-            (now () + of_hms 0 2 0, 5)
+            (now () + of_hms 0 2 0, 5);
+            (of_hms 12 0 0, -1) (* to ensure there is at least one event after 1 am *)
             ])
     in 
     
     let rec scheduler () =
-        let time_until_next = perform queue in 
+        let time_until_next = perform events_for_tomorrow queue in 
         let sleep_until_next = let* () = Lwt_unix.sleep time_until_next in Lwt.return Next in
         let* res = Lwt.pick [sleep_until_next; Lwt_mvar.take message_in] in 
         match res with
