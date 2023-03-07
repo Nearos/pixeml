@@ -85,6 +85,11 @@ let rec perform (queue : EventQueue.t) =
         else 
             float_of_int seconds_until 
 
+(** Generates an event for testing the scheduler. 
+    Upon exection of this event, it prints 
+    1.  the id 
+    2.  scheduled time, and actual time, 
+        which should not differ by more than a second *)
 let test_event time id = 
     let open Event in {
         action = 
@@ -99,19 +104,22 @@ let test_event time id =
 
 let scheduler (message_in : message Lwt_mvar.t) = 
     let queue = EventQueue.empty () in
-    (
-        let _ = List.map 
-            (fun (time, id) -> 
-                EventQueue.insert (test_event time id) queue)
-            (let open TimeOfDay in [
-                (now () + of_hms 0 0 20, 3);
-                (now () + of_hms 0 0 30, 4);
-                (now () + of_hms 0 0 10, 2);
-                (now () + of_hms 0 0 5, 1);
-                (now () + of_hms 0 2 0, 5)
-                ])
-        in ()
-    );
+    
+    (** 
+        Test events to ensure the scheduler is working properly; 
+        these 5 events should be executed in the order of their ids *)
+    let _ = List.map 
+        (fun (time, id) -> 
+            EventQueue.insert (test_event time id) queue)
+        (let open TimeOfDay in [
+            (now () + of_hms 0 0 20, 3);
+            (now () + of_hms 0 0 30, 4);
+            (now () + of_hms 0 0 10, 2);
+            (now () + of_hms 0 0 5, 1);
+            (now () + of_hms 0 2 0, 5)
+            ])
+    in 
+    
     let rec scheduler () =
         let time_until_next = perform queue in 
         let sleep_until_next = let* () = Lwt_unix.sleep time_until_next in Lwt.return Next in
@@ -123,6 +131,8 @@ let scheduler (message_in : message Lwt_mvar.t) =
                 (test_event time id)
                 queue;
             scheduler ()
-        | ScheduleEvent event -> EventQueue.insert event queue
+        | ScheduleEvent event -> 
+            EventQueue.insert event queue;
+            scheduler ()
         
     in scheduler ()
