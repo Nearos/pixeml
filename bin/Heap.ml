@@ -103,8 +103,11 @@ module Make (CompareElements : Compare)
             let len = Array.length (!heap) in
             let el = (!heap).(len - 1) in
             heap := Array.remove (len - 1) 1 (!heap);
-            heap := (!heap).(index) <- el;
-            upheap index heap;
-            downheap index heap
+            if len - 1 != index 
+            then (
+                heap := (!heap).(index) <- el;
+                upheap index heap;
+                downheap index heap
+            )
 
     end
