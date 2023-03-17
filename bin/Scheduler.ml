@@ -115,6 +115,8 @@ type message
     | ScheduleEvent of Event.t
     | RemoveEvent of int
 
+type message_sender = message Lwt_mvar.t
+
 let rec perform 
         (queues : SchedulerQueues.t) = 
     let open TimeOfDay in

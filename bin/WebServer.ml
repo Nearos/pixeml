@@ -1,5 +1,7 @@
 open Lwt.Syntax 
 
+module _ = TaskManager
+
 let server_promise (message_send : Scheduler.message Lwt_mvar.t) = 
     let event_id_generator = 
         let current_event_id = ref 100 in 
@@ -26,5 +28,6 @@ let server_promise (message_send : Scheduler.message Lwt_mvar.t) =
                 Scheduler.RemoveEvent 5
                 |> Lwt_mvar.put message_send 
             in 
-            Dream.html ("Removing event 5"))
+            Dream.html ("Removing event 5"));
+        (* Insert routes for the task manager api here; they will be declared in another file*)
     ]
