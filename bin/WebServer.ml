@@ -1,6 +1,6 @@
 open Lwt.Syntax 
 
-module _ = TaskManager
+module _ = TaskManagerApi
 
 let server_promise (message_send : Scheduler.message Lwt_mvar.t) = 
     let event_id_generator = 

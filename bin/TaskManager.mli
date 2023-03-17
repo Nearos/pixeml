@@ -1,8 +1,8 @@
 
 type task_setting_type 
-    = Time
-    | Int 
-    | String
+  = Time
+  | Int 
+  | String
 
 type task_settings_template = (string * task_setting_type) list
 type task_settings = (string * string) list
@@ -12,9 +12,9 @@ type task_settings = (string * string) list
     like quantity of water, as well as including a function that will schedule 
     the events for this task and return the event ids *)
 type task_type = {
-        settings : task_settings_template;
-        instantiate : Scheduler.message_sender -> task_settings -> int list Lwt.t
-    }
+    settings : task_settings_template;
+    instantiate : Scheduler.message_sender -> task_settings -> int list Lwt.t
+  }
 
 (** An instantiation of a task type, such as watering the peonies every day at 5pm with 300ml of water *)
 type task
