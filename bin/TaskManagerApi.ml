@@ -35,3 +35,5 @@ let jsonify_task_type ((task_type_id, task_type_name, task_type) : int * string 
   ^ "\"id\" : " ^ string_of_int task_type_id
   ^ "\"settings\" : " ^ jsonify_settings_template task_type.settings
   ^ "}"
+
+let api_calls (task_manager : task_manager ref) = []
