@@ -20,6 +20,15 @@ module TimeOfDay = struct
 
     let to_string {hour; minute; second} = string_of_int hour ^ ":" ^ string_of_int minute ^ ":" ^ string_of_int second
 
+    let of_string time_str = 
+        let time_parts = time_str 
+          |> Str.split (Str.regexp ":")
+          |> List.map int_of_string
+        in 
+        match time_parts with 
+        | [h;m;s] -> Some (of_hms h m s)
+        | _ -> None
+
     let to_seconds (time : time_of_day) : int = time.hour * 3600 + time.minute * 60 + time.second
 
     let of_seconds (seconds : int) : time_of_day =
