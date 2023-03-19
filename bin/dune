@@ -1,4 +1,5 @@
 (executable
  (public_name pixeml)
  (name main)
- (libraries pixeml dream batteries))
+ (libraries pixeml dream batteries)
+ (preprocess (pps lwt_ppx ppx_yojson_conv)))

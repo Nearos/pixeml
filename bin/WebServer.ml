@@ -9,8 +9,18 @@ let server_promise (message_send : Scheduler.message Lwt_mvar.t) =
             current_event_id := !current_event_id + 1;
             !current_event_id
     in
+    let task_manager = 
+        TaskManagerApi.{
+            task_types = 
+                [
+                    ("Test Task", TestTaskType.task_t event_id_generator);
+                ];
+            existing_tasks = [];
+        }
+    in 
     Dream.serve 
-    @@ Dream.router [
+    @@ Dream.logger
+    @@ Dream.router ([
         Dream.get "/api/add_test_event" (fun _ -> 
             let test_id = event_id_generator () in
             let* () = 
@@ -31,3 +41,6 @@ let server_promise (message_send : Scheduler.message Lwt_mvar.t) =
             Dream.html ("Removing event 5"));
         (* Insert routes for the task manager api here; they will be declared in another file*)
     ]
+    @
+    TaskManagerApi.api_calls message_send task_manager
+    )
