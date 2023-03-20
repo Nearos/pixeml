@@ -1,5 +1,17 @@
 open Lwt.Syntax
 
+type task_data = {
+  task_id : int;
+  task_type_id : int;
+  name : string;
+  task : TaskManager.task;
+}
+
+type task_type_data = {
+  task_type_id: int;
+  name : string;
+  task_type : TaskManager.task_type;
+}
 
 module type TaskManagerData = sig
   type t 
@@ -10,13 +22,13 @@ module type TaskManagerData = sig
   
   val remove_task : t -> int -> unit Lwt.t
     
-  val task_types : t -> (int * string * TaskManager.task_type) list Lwt.t
+  val task_types : t -> task_type_data list Lwt.t
 
-  val tasks : t -> (int * int * string * TaskManager.task) list Lwt.t
+  val tasks : t -> task_data list Lwt.t
 
-  val task_type_by_id : t -> int -> (string * TaskManager.task_type) Lwt.t 
+  val task_type_by_id : t -> int -> task_type_data Lwt.t 
   
-  val task_by_id : t -> int -> (int * string * TaskManager.task) Lwt.t
+  val task_by_id : t -> int -> task_data Lwt.t
 end 
 
 module TaskManagerData : TaskManagerData = struct 
@@ -44,13 +56,26 @@ module TaskManagerData : TaskManagerData = struct
     manager.existing_tasks <- list_remove_nth id manager.existing_tasks;
     Lwt.return ()
     
-  let task_types manager = manager.task_types |> List.mapi (fun i (n, t) -> (i, n, t))  |> Lwt.return
+  let task_types manager = manager.task_types |> List.mapi (fun i (n, t) -> {task_type_id = i; name = n; task_type = t})  |> Lwt.return
 
-  let tasks manager = manager.existing_tasks |> List.mapi (fun i (tid, n, t) -> (i, tid, n, t)) |> Lwt.return 
+  let tasks manager = manager.existing_tasks |> List.mapi (fun i (tid, n, t) -> {task_id = i; task_type_id = tid; name = n; task = t}) |> Lwt.return 
 
-  let task_type_by_id manager id = List.nth manager.task_types id |> Lwt.return 
+  let task_type_by_id manager id = 
+    let (name, task_type) = List.nth manager.task_types id in
+    Lwt.return {
+      task_type_id = id;
+      name = name;
+      task_type = task_type;
+    }
 
-  let task_by_id manager id = List.nth manager.existing_tasks id |> Lwt.return
+  let task_by_id manager id = 
+    let (type_id, name, task) = List.nth manager.existing_tasks id in 
+    Lwt.return {
+      task_id = id;
+      task_type_id = type_id;
+      name = name;
+      task = task;
+    }
 
 end 
 
@@ -79,7 +104,7 @@ let jsonify_settings_template (settings_template : TaskManager.task_settings_tem
   let stringified = List.map (fun (a, b) -> (a, stringify_setting_type b)) settings_template in 
   jsonify_settings stringified
 
-let jsonify_task ((task_id, task_type_id, task_name, task) : int * int * string * TaskManager.task) : string = 
+let jsonify_task ({task_id; task_type_id; name = task_name; task} : task_data) : string = 
   "{" 
   ^ "\"name\" : \"" ^ task_name
   ^ "\", \"id\" : " ^ string_of_int task_id
@@ -87,7 +112,7 @@ let jsonify_task ((task_id, task_type_id, task_name, task) : int * int * string 
   ^ ", \"settings\" : " ^ jsonify_settings (TaskManager.settings task)
   ^ "}"
 
-let jsonify_task_type ((task_type_id, task_type_name, task_type) : int * string * TaskManager.task_type) : string = 
+let jsonify_task_type ({task_type_id; name = task_type_name; task_type} : task_type_data) : string = 
   "{" 
   ^ "\"name\" : \"" ^ task_type_name
   ^ "\", \"id\" : " ^ string_of_int task_type_id
@@ -142,12 +167,12 @@ let api_calls (scheduler_mvar : Scheduler.message_sender) (task_manager : TaskMa
         |> Yojson.Safe.from_string
         |> api_new_task_body_of_yojson
     in 
-    let* task_type = TaskManagerData.task_type_by_id task_manager decoded_body.task_type_id in
+    let* task_type_data = TaskManagerData.task_type_by_id task_manager decoded_body.task_type_id in
     let* task = 
       TaskManager.instantiate 
         scheduler_mvar 
         (decoded_body.settings)
-        (snd task_type)
+        (task_type_data.task_type)
     in 
     let* () = TaskManagerData.add_task task_manager decoded_body.task_name decoded_body.task_type_id task in
     Dream.json "{}");
@@ -167,7 +192,7 @@ let api_calls (scheduler_mvar : Scheduler.message_sender) (task_manager : TaskMa
         |> Yojson.Safe.from_string
         |> api_modify_task_body_of_yojson
     in 
-    let* (task_type_id, task_name, old_task) = 
+    let* {task_type_id; name = task_name; task = old_task; _}= 
       TaskManagerData.task_by_id task_manager decoded_body.task_id 
     in 
     (* delete old task from list*)
@@ -196,7 +221,7 @@ let api_calls (scheduler_mvar : Scheduler.message_sender) (task_manager : TaskMa
         |> Yojson.Safe.from_string
         |> api_delete_task_body_of_yojson
     in 
-    let* (_, _, old_task) = TaskManagerData.task_by_id task_manager decoded_body.task_id in 
+    let* {task = old_task; _} = TaskManagerData.task_by_id task_manager decoded_body.task_id in 
     (* delete old task from list*)
     let* () = TaskManagerData.remove_task task_manager decoded_body.task_id in 
     (* call TaskManager.delete *)
