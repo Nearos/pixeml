@@ -38,5 +38,5 @@ let server_promise (message_send : Scheduler.message Lwt_mvar.t) =
                 |> Lwt_mvar.put message_send 
             in 
             Dream.html ("Removing event 5"));
-        Dream.get "/**" @@ Dream.static "static/";
+        Dream.get "/**" @@ Dream.static "frontend/pixeml-frontend/build/";
     ])
