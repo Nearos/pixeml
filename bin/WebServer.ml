@@ -1,7 +1,5 @@
 open Lwt.Syntax 
 
-module _ = TaskManagerApi
-
 let server_promise (message_send : Scheduler.message Lwt_mvar.t) = 
     let event_id_generator = 
         let current_event_id = ref 100 in 
@@ -9,15 +7,12 @@ let server_promise (message_send : Scheduler.message Lwt_mvar.t) =
             current_event_id := !current_event_id + 1;
             !current_event_id
     in
-    let task_manager = 
-        TaskManagerApi.{
-            task_types = 
+    let* task_manager = 
+        TaskManagerApi.TaskManagerData.from_types
                 [
                     ("Test Task", TestTaskType.task_t event_id_generator);
                     ("Water Plant", WaterPlantTaskType.task_t event_id_generator);
-                ];
-            existing_tasks = [];
-        }
+                ]
     in 
     Dream.serve 
     @@ Dream.logger
@@ -43,6 +38,5 @@ let server_promise (message_send : Scheduler.message Lwt_mvar.t) =
                 |> Lwt_mvar.put message_send 
             in 
             Dream.html ("Removing event 5"));
-        (* Insert routes for the task manager api here; they will be declared in another file*)
         Dream.get "/**" @@ Dream.static "static/";
     ])
