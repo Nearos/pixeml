@@ -11,10 +11,10 @@ let jsonify_list lst =
 
 let jsonify_settings (settings : TaskManager.task_settings) : string = 
   let jsonify_setting (key, value) = 
-    "\"" ^ key ^"\" : \"" ^ value ^ "\""
+    "[\"" ^ key ^"\", \"" ^ value ^ "\"]"
   in 
   let content = List.map jsonify_setting settings |> jsonify_list in
-  "{" ^ content ^ "}"
+  "[" ^ content ^ "]"
 
 let stringify_setting_type = 
   let open TaskManager in 

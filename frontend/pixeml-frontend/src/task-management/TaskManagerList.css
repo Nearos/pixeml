@@ -1,0 +1,26 @@
+.task-list-item {
+    text-align: left;
+    border-style: solid;
+    border-radius: 15px;
+    padding: 20px;
+    margin: 10px;
+    box-shadow: 5px 5px 5px grey;
+}
+
+.task-type-item {
+    border-color: green;
+}
+
+.task-item {
+    border-color: orange;
+}
+
+.task-list-item-title {
+    font-weight: bold;
+    font-size: 15pt;
+}
+
+.task-list-item-subtitle {
+    color: gray;
+    font-weight: bold;
+}
