@@ -37,9 +37,9 @@ function resolve_task(utask : UnresolvedTask, task_types : Array<TaskType>) : Ta
         return res;
     }
 
-    let type_structure = task_types[utask.type_id].id == utask.type_id 
+    let type_structure = task_types[utask.type_id].id === utask.type_id 
         ? task_types[utask.type_id] 
-        : linear_search((val) => val.id == utask.type_id, task_types); 
+        : linear_search((val) => val.id === utask.type_id, task_types); 
 
     if(type_structure == null){
         return null;
@@ -51,11 +51,11 @@ function resolve_task(utask : UnresolvedTask, task_types : Array<TaskType>) : Ta
 
     utask.settings.forEach(
         ([setting_name, value], i) => {
-            if(type_structure?.settings[i][0] == setting_name){
+            if(type_structure?.settings[i][0] === setting_name){
                 result_settings.push([setting_name, type_structure.settings[i][1], value]);
             }else if(type_structure){
                 console.log("Doing linear search");
-                let searched = linear_search((val) => val[0] == setting_name, type_structure.settings);
+                let searched = linear_search((val) => val[0] === setting_name, type_structure.settings);
                 if(searched){
                     result_settings.push([setting_name, searched[1], value])
                 }else{
@@ -76,19 +76,158 @@ function resolve_task(utask : UnresolvedTask, task_types : Array<TaskType>) : Ta
     }
 }
 
-function TaskTypeForm(props : {task_type : TaskType}) : JSX.Element {
+function FormInput( 
+    {name, type, value, onUpdateValue} 
+        : {
+            name : string, 
+            type : string, 
+            value: string, 
+
+            onUpdateValue : {(updated : string) : void}}
+    )  : JSX.Element {
+
+    let [edited, setEdited] = useState(false);
+
+    useEffect(() => {
+        if( value === "") {
+            setEdited(true);
+        }
+    } , [])
+    
+    return (
+        <span className="task-individual-setting">
+            <label>{name}: </label>
+            {
+                edited
+                    ? <input type="text" onChange={(evt) => onUpdateValue(evt.target.value)} value={value} />
+                    : <span className="task-individual-value" onClick={() => setEdited(true)}>{value}</span>
+            }
+        </span>
+    );
+}
+
+function TaskTypeForm(props : {task_type : TaskType, refresh : {() : void}}) : JSX.Element {
+
+    let [settings, setSettings] = useState(
+        props.task_type.settings.map(([name, type]) => [name, type, ""]));
+
+
+    let [name, setName] = useState("");
+
+    function updateSetting(index: number, value : string){
+        let newSettings = [...settings];
+        newSettings[index] = [newSettings[index][0], newSettings[index][1], value];
+        setSettings(newSettings);
+    }
+
+    function addTask(){
+        (async () => {
+            let res = await fetch("/api/new_task", {
+                method: "POST",
+                headers : {
+                    "Content-Type" : "application/json"
+                },
+                body: JSON.stringify({
+                    task_type_id : props.task_type.id,
+                    task_name: name,
+                    settings: settings.map(([name, type, value])=>[name, value])
+                }),
+            })
+            let parsedRes = await res.json();
+            if(typeof parsedRes === 'object' && Object.keys(parsedRes).length == 0){
+                props.refresh()
+            }else{
+                alert("Failed to add task");
+            }
+        })()
+    }
+
     return (
         <div className="task-list-item task-type-item">
             <div className="task-list-item-title">{props.task_type.name}</div>
+            <div className="task-list-item-form">
+                <FormInput name="Name" type="string" value={name} onUpdateValue={(val) => setName(val)}/>
+                {settings.map( ([name, type, value], index) => {
+                        return (
+                            <FormInput name={name} type={type} value={value} onUpdateValue={(val) => updateSetting(index, val)}/>
+                        )
+                    }
+                )}
+                <button onClick={addTask}>add task</button>
+            </div>
         </div>
     );
 }
 
-function TaskForm(props : {task : Task}) : JSX.Element {
+function TaskForm(props : {task : Task, refresh : {() : void}}) : JSX.Element {
+    let [settings, setSettings] = useState(props.task.settings);
+
+
+    let [name, setName] = useState(props.task.name);
+
+    function updateSetting(index: number, value : string){
+        let newSettings = [...settings];
+        newSettings[index] = [newSettings[index][0], newSettings[index][1], value];
+        setSettings(newSettings);
+    }
+
+    function modifyTask(){
+        (async () => {
+            let res = await fetch("/api/modify_task", {
+                method: "POST",
+                headers : {
+                    "Content-Type" : "application/json"
+                },
+                body: JSON.stringify({
+                    task_id : props.task.id,
+                    settings: settings.map(([name, type, value])=>[name, value])
+                }),
+            })
+            let parsedRes = await res.json();
+            if(typeof parsedRes === 'object' && Object.keys(parsedRes).length == 0){
+                props.refresh()
+            }else{
+                alert("Failed to modify task");
+            }
+        })()
+    }
+
+    function deleteTask(){
+        (async () => {
+            let res = await fetch("/api/delete_task", {
+                method: "POST",
+                headers : {
+                    "Content-Type" : "application/json"
+                },
+                body: JSON.stringify({
+                    task_id : props.task.id,
+                }),
+            })
+            let parsedRes = await res.json();
+            if(typeof parsedRes === 'object' && Object.keys(parsedRes).length == 0){
+                props.refresh()
+            }else{
+                alert("Failed to modify task");
+            }
+        })()
+    }
+
+
     return (
         <div className="task-list-item task-item">
             <div className="task-list-item-title">{props.task.name}</div>
             <div className="task-list-item-subtitle">{props.task.type_name}</div>
+            <div className="task-list-item-form">
+                <FormInput name="Name" type="string" value={name} onUpdateValue={(val) => setName(val)}/>
+                {settings.map( ([name, type, value], index) => {
+                        return (
+                            <FormInput name={name} type={type} value={value} onUpdateValue={(val) => updateSetting(index, val)}/>
+                        )
+                    }
+                )}
+                <button onClick={modifyTask}>modify task</button>
+                <button onClick={deleteTask}> delete task</button>
+            </div>
         </div>
     )
 }
@@ -118,8 +257,8 @@ function TaskManagerList() : JSX.Element {
     }, [_update_trigger])
 
     return (<div>
-        {task_types.map((tt) => <TaskTypeForm task_type={tt}/>)}
-        {tasks.map((ts) => <TaskForm task={ts}/>)}
+        {task_types.map((tt) => <TaskTypeForm refresh={trigger_update} task_type={tt}/>)}
+        {tasks.map((ts) => <TaskForm refresh={trigger_update} task={ts}/>)}
     </div>);
 }
 

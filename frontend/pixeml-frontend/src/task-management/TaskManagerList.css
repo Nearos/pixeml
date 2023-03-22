@@ -24,3 +24,19 @@
     color: gray;
     font-weight: bold;
 }
+
+.task-individual-setting{
+    margin: 10px;
+}
+
+.task-individual-value{
+    margin: 5px;
+    padding: 5px;
+    /* border: solid black 1px; */
+    border-radius: 5px;
+    color: grey;
+}
+
+.task-list-item-form button{
+    margin: 10px;
+}
