@@ -218,7 +218,7 @@ function TaskForm(props : {task : Task, refresh : {() : void}}) : JSX.Element {
             <div className="task-list-item-title">{props.task.name}</div>
             <div className="task-list-item-subtitle">{props.task.type_name}</div>
             <div className="task-list-item-form">
-                <FormInput name="Name" type="string" value={name} onUpdateValue={(val) => setName(val)}/>
+                {/* <FormInput name="Name" type="string" value={name} onUpdateValue={(val) => setName(val)}/> */}
                 {settings.map( ([name, type, value], index) => {
                         return (
                             <FormInput name={name} type={type} value={value} onUpdateValue={(val) => updateSetting(index, val)}/>
