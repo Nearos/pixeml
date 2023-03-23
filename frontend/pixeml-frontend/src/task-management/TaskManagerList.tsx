@@ -76,6 +76,28 @@ function resolve_task(utask : UnresolvedTask, task_types : Array<TaskType>) : Ta
     }
 }
 
+function InputElement({type, value, onUpdateValue} : {value : string, type : string, onUpdateValue : {(_ : string) : void}}){
+    if(type == "time"){
+        return (
+            <input 
+                type="time" 
+                onChange={(evt) => { 
+                    onUpdateValue(evt.target.value.replace(/\D/g,''))
+                }} 
+                value={value} />)
+    }
+    if(type === "int"){
+        return (
+            <input 
+                type="number" 
+                onChange={(evt) => { 
+                    onUpdateValue(evt.target.value.replace(/\D/g,''))
+                }} 
+                value={value} />)
+    }
+    return <input type="text" onChange={(evt) => onUpdateValue(evt.target.value)} value={value} />
+}
+
 function FormInput( 
     {name, type, value, refreshTrigger, onUpdateValue} 
         : {
@@ -108,7 +130,7 @@ function FormInput(
     );
 }
 
-function TaskTypeForm(props : {task_type : TaskType, refresh : {() : void}, refreshTrigger : boolean}) : JSX.Element {
+function TaskTypeForm(props : {displayError : {(_ :string) : void}, task_type : TaskType, refresh : {() : void}, refreshTrigger : boolean}) : JSX.Element {
 
     let [settings, setSettings] = useState(
         props.task_type.settings.map(([name, type]) => [name, type, ""]));
@@ -130,22 +152,23 @@ function TaskTypeForm(props : {task_type : TaskType, refresh : {() : void}, refr
 
     function addTask(){
         (async () => {
-            let res = await fetch("/api/new_task", {
-                method: "POST",
-                headers : {
-                    "Content-Type" : "application/json"
-                },
-                body: JSON.stringify({
-                    task_type_id : props.task_type.id,
-                    task_name: name,
-                    settings: settings.map(([name, type, value])=>[name, value])
-                }),
-            })
-            let parsedRes = await res.json();
-            if(typeof parsedRes === 'object' && Object.keys(parsedRes).length == 0){
+            try{
+                let res = await fetch("/api/new_task", {
+                    method: "POST",
+                    headers : {
+                        "Content-Type" : "application/json"
+                    },
+                    body: JSON.stringify({
+                        task_type_id : props.task_type.id,
+                        task_name: name,
+                        settings: settings.map(([name, type, value])=>[name, value])
+                    }),
+                })
+                let parsedRes = await res.json();
+           
                 props.refresh()
-            }else{
-                alert("Failed to add task");
+            }catch(_){
+                props.displayError("Failed to add task");
             }
         })()
     }
@@ -167,7 +190,7 @@ function TaskTypeForm(props : {task_type : TaskType, refresh : {() : void}, refr
     );
 }
 
-function TaskForm(props : {task : Task, refresh : {() : void}, refreshTrigger : boolean}) : JSX.Element {
+function TaskForm(props : {displayError : {(_ :string) : void}, task : Task, refresh : {() : void}, refreshTrigger : boolean}) : JSX.Element {
     let [settings, setSettings] = useState(props.task.settings);
 
     let [name, setName] = useState(props.task.name);
@@ -197,41 +220,42 @@ function TaskForm(props : {task : Task, refresh : {() : void}, refreshTrigger : 
     function modifyTask(){
         if(settingsModified)
         (async () => {
-            let res = await fetch("/api/modify_task", {
-                method: "POST",
-                headers : {
-                    "Content-Type" : "application/json"
-                },
-                body: JSON.stringify({
-                    task_id : props.task.id,
-                    settings: settings.map(([name, type, value])=>[name, value])
-                }),
-            })
-            let parsedRes = await res.json();
-            if(typeof parsedRes === 'object' && Object.keys(parsedRes).length == 0){
+            try{
+                let res = await fetch("/api/modify_task", {
+                    method: "POST",
+                    headers : {
+                        "Content-Type" : "application/json"
+                    },
+                    body: JSON.stringify({
+                        task_id : props.task.id,
+                        settings: settings.map(([name, type, value])=>[name, value])
+                    }),
+                })
+                let parsedRes = await res.json();
                 props.refresh()
-            }else{
+            }catch(e){
                 alert("Failed to modify task");
             }
         })();
 
         if(nameModified)
         (async () => {
-            let res = await fetch("/api/rename_task", {
-                method: "POST",
-                headers : {
-                    "Content-Type" : "application/json"
-                },
-                body: JSON.stringify({
-                    task_id : props.task.id,
-                    name : name
-                }),
-            })
-            let parsedRes = await res.json();
-            if(typeof parsedRes === 'object' && Object.keys(parsedRes).length == 0){
+            try{
+                let res = await fetch("/api/rename_task", {
+                    method: "POST",
+                    headers : {
+                        "Content-Type" : "application/json"
+                    },
+                    body: JSON.stringify({
+                        task_id : props.task.id,
+                        name : name
+                    }),
+                })
+                let parsedRes = await res.json();
+            
                 props.refresh()
-            }else{
-                alert("Failed to modify task");
+            }catch(e){
+                props.displayError("Failed to modify task");
             }
         })();
     }
@@ -251,7 +275,7 @@ function TaskForm(props : {task : Task, refresh : {() : void}, refreshTrigger : 
             if(typeof parsedRes === 'object' && Object.keys(parsedRes).length == 0){
                 props.refresh()
             }else{
-                alert("Failed to modify task");
+                props.displayError("Failed to delete task");
             }
         })()
     }
@@ -281,6 +305,8 @@ function TaskManagerList() : JSX.Element {
 
     let [tasks, set_tasks] = useState<Array<Task>>([]);
 
+    let [errorMessage, displayError] = useState("");
+
     let [_update_trigger, _set_update_trigger] = useState(false);
 
     //to be called when something is put to the server
@@ -300,10 +326,21 @@ function TaskManagerList() : JSX.Element {
         })()
     }, [_update_trigger])
 
-    return (<div>
-        {task_types.map((tt) => <TaskTypeForm refreshTrigger={_update_trigger} refresh={trigger_update} task_type={tt}/>)}
-        {tasks.map((ts) => <TaskForm refreshTrigger={_update_trigger} refresh={trigger_update} task={ts}/>)}
-    </div>);
+    return (
+        <div>
+            {
+                errorMessage === "" 
+                    ? <></> 
+                    : <div className="error-display">
+                        {errorMessage}
+                        <button onClick={() => { displayError("")}}>close</button>
+                    </div>
+            }
+            <div>
+                {task_types.map((tt) => <TaskTypeForm displayError={displayError} refreshTrigger={_update_trigger} refresh={trigger_update} task_type={tt}/>)}
+                {tasks.map((ts) => <TaskForm displayError={displayError} refreshTrigger={_update_trigger} refresh={trigger_update} task={ts}/>)}
+            </div>
+        </div>);
 }
 
 export default TaskManagerList;

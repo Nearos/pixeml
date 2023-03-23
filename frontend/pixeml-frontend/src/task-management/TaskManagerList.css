@@ -40,3 +40,14 @@
 .task-list-item-form button{
     margin: 10px;
 }
+
+.error-display {
+    background-color: orangered;
+    padding: 15px;
+    margin: 0px;
+    text-align: left;
+}
+
+.error-display button{
+    margin: 5px;
+}
