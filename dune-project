@@ -5,11 +5,11 @@
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github Nearos/pixeml))
 
-(authors "Author Name")
+(authors "Soren van den Berg")
 
-(maintainers "Maintainer Name")
+(maintainers "Soren van den Berg")
 
 (license LICENSE)
 
