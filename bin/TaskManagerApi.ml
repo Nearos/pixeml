@@ -132,6 +132,7 @@ let api_calls (scheduler_mvar : Scheduler.message_sender) (task_manager : TaskMa
         decoded_body.settings
         old_task
     in 
+    (* print_endline (jsonify_settings decoded_body.settings); *)
     (* add new task to list*)
     let* () = TaskManagerData.add_task task_manager task_name task_type_id new_task in
     Dream.json "{}");

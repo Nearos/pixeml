@@ -77,21 +77,21 @@ function resolve_task(utask : UnresolvedTask, task_types : Array<TaskType>) : Ta
 }
 
 function InputElement({type, value, onUpdateValue} : {value : string, type : string, onUpdateValue : {(_ : string) : void}}){
-    if(type == "time"){
+    if(type === "time"){
         return (
             <input 
                 type="time" 
                 onChange={(evt) => { 
-                    onUpdateValue(evt.target.value.replace(/\D/g,''))
+                    onUpdateValue(evt.target.value)
                 }} 
                 value={value} />)
     }
     if(type === "int"){
         return (
             <input 
-                type="number" 
+                type="text" 
                 onChange={(evt) => { 
-                    onUpdateValue(evt.target.value.replace(/\D/g,''))
+                    onUpdateValue(evt.target.value.split("").filter(c => "1234567890".includes(c)).join(""))
                 }} 
                 value={value} />)
     }
@@ -123,7 +123,8 @@ function FormInput(
             <label>{name}: </label>
             {
                 edited
-                    ? <input type="text" onChange={(evt) => onUpdateValue(evt.target.value)} value={value} />
+                    ? //<input type="text" onChange={(evt) => onUpdateValue(evt.target.value)} value={value} />
+                        <InputElement value={value} type={type} onUpdateValue={onUpdateValue} />
                     : <span className="task-individual-value" onClick={() => setEdited(true)}>{value}</span>
             }
         </span>
@@ -161,7 +162,7 @@ function TaskTypeForm(props : {displayError : {(_ :string) : void}, task_type : 
                     body: JSON.stringify({
                         task_type_id : props.task_type.id,
                         task_name: name,
-                        settings: settings.map(([name, type, value])=>[name, value])
+                        settings: settings.map(([name, type, value])=>[name, type === "time" ? value + ":00" : value])
                     }),
                 })
                 let parsedRes = await res.json();
@@ -228,13 +229,13 @@ function TaskForm(props : {displayError : {(_ :string) : void}, task : Task, ref
                     },
                     body: JSON.stringify({
                         task_id : props.task.id,
-                        settings: settings.map(([name, type, value])=>[name, value])
+                        settings: settings.map(([name, type, value])=>[name, type === "time" && value.split(":").length == 2 ? value + ":00" : value])
                     }),
                 })
                 let parsedRes = await res.json();
                 props.refresh()
             }catch(e){
-                alert("Failed to modify task");
+                props.displayError("Failed to modify task");
             }
         })();
 
