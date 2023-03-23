@@ -1,5 +1,5 @@
 (executable
  (public_name pixeml)
  (name main)
- (libraries pixeml dream batteries caqti-lwt)
+ (libraries pixeml dream lwt batteries caqti-lwt caqti caqti-driver-postgresql)
  (preprocess (pps lwt_ppx ppx_yojson_conv)))

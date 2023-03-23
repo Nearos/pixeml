@@ -15,7 +15,9 @@ type task_type_data = {
 module type S = sig
   type t 
 
-  val from_types : (string * TaskManager.task_type) list -> t Lwt.t
+  (* val from_types : (string * TaskManager.task_type) list -> t Lwt.t *)
+
+  val initial : t
 
   val add_task : t -> string -> int -> TaskManager.task -> unit Lwt.t 
   
@@ -30,18 +32,24 @@ module type S = sig
   val task_by_id : t -> int -> task_data Lwt.t
 end 
 
-module TaskManagerData : S = struct 
+
+
+module TaskManagerData (
+    Init : sig 
+      val task_types : (string * TaskManager.task_type) list
+    end
+  ) : S = struct 
+  
   type task_manager = {
       task_types : (string * TaskManager.task_type) list;
       mutable existing_tasks : (int * string * TaskManager.task) list;
     }
   type t = task_manager
 
-  let from_types types = 
-    Lwt.return {
-      task_types = types;
-      existing_tasks = []
-    }
+  let initial = {
+    task_types = Init.task_types;
+    existing_tasks = []
+  }
 
   let rec list_remove_nth n = function 
   | [] -> []
@@ -77,3 +85,8 @@ module TaskManagerData : S = struct
     }
 
 end 
+
+let from_types types = 
+  Lwt.return (
+    module TaskManagerData (struct let task_types = types end) : S
+  )

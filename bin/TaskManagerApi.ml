@@ -69,7 +69,9 @@ type api_delete_task_body = {
   task_id : int;
 } [@@deriving yojson]
 
-let api_calls (scheduler_mvar : Scheduler.message_sender) (task_manager : TaskManagerData.t) = [
+let api_calls (scheduler_mvar : Scheduler.message_sender) (module TaskManagerData : S) = 
+  let task_manager = TaskManagerData.initial in 
+  [
   Dream.get "/api/task_types" (fun _ -> 
       let* task_types = TaskManagerData.task_types task_manager in 
       list_index_name_to_json jsonify_task_type task_types |> Dream.json

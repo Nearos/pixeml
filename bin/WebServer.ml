@@ -8,7 +8,7 @@ let server_promise (message_send : Scheduler.message Lwt_mvar.t) =
             !current_event_id
     in
     let* task_manager = 
-        TaskManagerData.TaskManagerData.from_types
+        TaskManagerData.from_types
                 [
                     ("Test Task", TestTaskType.task_t event_id_generator);
                     ("Water Plant", WaterPlantTaskType.task_t event_id_generator);
