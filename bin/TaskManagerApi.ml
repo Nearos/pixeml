@@ -60,6 +60,11 @@ type api_modify_task_body = {
   settings : (string * string) list;
 } [@@deriving yojson]
 
+type api_rename_task_body = {
+  task_id : int;
+  name : string;
+} [@@deriving yojson]
+
 type api_delete_task_body = {
   task_id : int;
 } [@@deriving yojson]
@@ -130,6 +135,28 @@ let api_calls (scheduler_mvar : Scheduler.message_sender) (task_manager : TaskMa
     (* add new task to list*)
     let* () = TaskManagerData.add_task task_manager task_name task_type_id new_task in
     Dream.json "{}");
+  (*
+    {
+      task_id : ...,
+      name : ...,
+    }
+     *)
+  Dream.post "/api/rename_task" (fun req -> 
+      let*
+        body = Dream.body req
+      in 
+      let decoded_body = 
+        body 
+          |> Yojson.Safe.from_string
+          |> api_rename_task_body_of_yojson
+      in 
+      let* {task_type_id; task; _} = 
+        TaskManagerData.task_by_id task_manager decoded_body.task_id 
+      in 
+      let* () = TaskManagerData.remove_task task_manager decoded_body.task_id in
+      let* () = TaskManagerData.add_task task_manager decoded_body.name task_type_id task in
+      Dream.json "{}"
+      );
   (*
     Accepts body
     {

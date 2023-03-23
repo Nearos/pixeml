@@ -77,12 +77,12 @@ function resolve_task(utask : UnresolvedTask, task_types : Array<TaskType>) : Ta
 }
 
 function FormInput( 
-    {name, type, value, onUpdateValue} 
+    {name, type, value, refreshTrigger, onUpdateValue} 
         : {
             name : string, 
             type : string, 
             value: string, 
-
+            refreshTrigger: boolean,
             onUpdateValue : {(updated : string) : void}}
     )  : JSX.Element {
 
@@ -92,7 +92,9 @@ function FormInput(
         if( value === "") {
             setEdited(true);
         }
-    } , [])
+    } , [value])
+
+    useEffect(() => {if(value != "") setEdited(false)}, [refreshTrigger])
     
     return (
         <span className="task-individual-setting">
@@ -106,13 +108,19 @@ function FormInput(
     );
 }
 
-function TaskTypeForm(props : {task_type : TaskType, refresh : {() : void}}) : JSX.Element {
+function TaskTypeForm(props : {task_type : TaskType, refresh : {() : void}, refreshTrigger : boolean}) : JSX.Element {
 
     let [settings, setSettings] = useState(
         props.task_type.settings.map(([name, type]) => [name, type, ""]));
 
 
     let [name, setName] = useState("");
+
+    useEffect(() => {
+        setName("");
+        setSettings(
+            props.task_type.settings.map(([name, type]) => [name, type, ""]))
+    }, [props.refreshTrigger])
 
     function updateSetting(index: number, value : string){
         let newSettings = [...settings];
@@ -146,10 +154,10 @@ function TaskTypeForm(props : {task_type : TaskType, refresh : {() : void}}) : J
         <div className="task-list-item task-type-item">
             <div className="task-list-item-title">{props.task_type.name}</div>
             <div className="task-list-item-form">
-                <FormInput name="Name" type="string" value={name} onUpdateValue={(val) => setName(val)}/>
+                <FormInput refreshTrigger={props.refreshTrigger} name="Name" type="string" value={name} onUpdateValue={(val) => setName(val)}/>
                 {settings.map( ([name, type, value], index) => {
                         return (
-                            <FormInput name={name} type={type} value={value} onUpdateValue={(val) => updateSetting(index, val)}/>
+                            <FormInput refreshTrigger={props.refreshTrigger} name={name} type={type} value={value} onUpdateValue={(val) => updateSetting(index, val)}/>
                         )
                     }
                 )}
@@ -159,19 +167,35 @@ function TaskTypeForm(props : {task_type : TaskType, refresh : {() : void}}) : J
     );
 }
 
-function TaskForm(props : {task : Task, refresh : {() : void}}) : JSX.Element {
+function TaskForm(props : {task : Task, refresh : {() : void}, refreshTrigger : boolean}) : JSX.Element {
     let [settings, setSettings] = useState(props.task.settings);
 
-
     let [name, setName] = useState(props.task.name);
+
+    let [nameModified, setNameModified] = useState(false);
+    let [settingsModified, setSettingsModified] = useState(false);
+
+    useEffect(() => {
+        setSettings(props.task.settings);
+        setName(props.task.name);
+        setNameModified(false);
+        setSettingsModified(false);
+    }, [props.task])
 
     function updateSetting(index: number, value : string){
         let newSettings = [...settings];
         newSettings[index] = [newSettings[index][0], newSettings[index][1], value];
         setSettings(newSettings);
+        setSettingsModified(true);
+    }
+    
+    function updateName(newName : string){
+        setName(newName);
+        setNameModified(true);
     }
 
     function modifyTask(){
+        if(settingsModified)
         (async () => {
             let res = await fetch("/api/modify_task", {
                 method: "POST",
@@ -189,7 +213,27 @@ function TaskForm(props : {task : Task, refresh : {() : void}}) : JSX.Element {
             }else{
                 alert("Failed to modify task");
             }
-        })()
+        })();
+
+        if(nameModified)
+        (async () => {
+            let res = await fetch("/api/rename_task", {
+                method: "POST",
+                headers : {
+                    "Content-Type" : "application/json"
+                },
+                body: JSON.stringify({
+                    task_id : props.task.id,
+                    name : name
+                }),
+            })
+            let parsedRes = await res.json();
+            if(typeof parsedRes === 'object' && Object.keys(parsedRes).length == 0){
+                props.refresh()
+            }else{
+                alert("Failed to modify task");
+            }
+        })();
     }
 
     function deleteTask(){
@@ -218,10 +262,10 @@ function TaskForm(props : {task : Task, refresh : {() : void}}) : JSX.Element {
             <div className="task-list-item-title">{props.task.name}</div>
             <div className="task-list-item-subtitle">{props.task.type_name}</div>
             <div className="task-list-item-form">
-                {/* <FormInput name="Name" type="string" value={name} onUpdateValue={(val) => setName(val)}/> */}
+                <FormInput refreshTrigger={props.refreshTrigger} name="Name" type="string" value={name} onUpdateValue={updateName}/>
                 {settings.map( ([name, type, value], index) => {
                         return (
-                            <FormInput name={name} type={type} value={value} onUpdateValue={(val) => updateSetting(index, val)}/>
+                            <FormInput refreshTrigger={props.refreshTrigger} name={name} type={type} value={value} onUpdateValue={(val) => updateSetting(index, val)}/>
                         )
                     }
                 )}
@@ -257,8 +301,8 @@ function TaskManagerList() : JSX.Element {
     }, [_update_trigger])
 
     return (<div>
-        {task_types.map((tt) => <TaskTypeForm refresh={trigger_update} task_type={tt}/>)}
-        {tasks.map((ts) => <TaskForm refresh={trigger_update} task={ts}/>)}
+        {task_types.map((tt) => <TaskTypeForm refreshTrigger={_update_trigger} refresh={trigger_update} task_type={tt}/>)}
+        {tasks.map((ts) => <TaskForm refreshTrigger={_update_trigger} refresh={trigger_update} task={ts}/>)}
     </div>);
 }
 
