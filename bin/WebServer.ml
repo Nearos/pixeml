@@ -14,7 +14,7 @@ let server_promise (message_send : Scheduler.message Lwt_mvar.t) =
                     ("Water Plant", WaterPlantTaskType.task_t event_id_generator);
                 ]
     in 
-    Dream.serve 
+    Dream.serve ~interface:"0.0.0.0"
     @@ Dream.logger
     @@ Dream.router (
     TaskManagerApi.api_calls message_send task_manager
