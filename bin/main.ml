@@ -1,6 +1,8 @@
 
 let () = print_newline ()
 
+let _ = WiringPi.setup ()
+
 (* let test_database = 
     let mvar = Lwt_mvar.create_empty () in
     let* _ = TaskManagerDatabase.restore_from_database mvar [] in 
