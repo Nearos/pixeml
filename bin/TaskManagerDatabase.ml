@@ -27,12 +27,15 @@ let query_task_by_id =
 
 let query_add_task = 
   tup2 int string ->? int @@
-  "INSERT INTO task (type_id, name) VALUES (?, ?) RETURNING id"
+  "INSERT INTO tasks (type_id, name) VALUES (?, ?) RETURNING id"
 
-let query_delete_task = 
-  tup2 int int ->. unit @@
-  "DELETE FROM tasks WHERE id = ?;
-  DELETE FROM task_settings WHERE task_id = ?"
+let query_delete_task1 = 
+  int ->. unit @@
+  "DELETE FROM tasks WHERE id = ?"
+
+let query_delete_task2 = 
+  int ->. unit @@
+  "DELETE FROM task_settings WHERE task_id = ?"
 
 let query_add_setting = 
   tup3 int string string ->. unit @@
@@ -71,8 +74,9 @@ let create_tables (module Conn : Caqti_lwt.CONNECTION) =
 let add_task (module Conn : Caqti_lwt.CONNECTION) (name : string) (type_id : int) (settings : (string * string) list) : int Lwt.t =
   let* res = Conn.find_opt query_add_task (type_id, name) in
   match res with
-  | Error _ | Ok (None) -> failwith "failed to add task" 
-  | Ok (Some id) -> 
+  | Error err -> failwith @@ Caqti_error.show err
+  | Ok None -> failwith "failed to add task"
+  | Ok (Some id) ->
     (let rec add_settings = function
     | [] -> Lwt.return ()
     | (name, value) :: rest -> 
@@ -85,13 +89,17 @@ let add_task (module Conn : Caqti_lwt.CONNECTION) (name : string) (type_id : int
     Lwt.return id)
 
 
-let delete_task (module Conn : Caqti_lwt.CONNECTION) (task_id : int) = Conn.exec query_delete_task (task_id, task_id)
+let delete_task (module Conn : Caqti_lwt.CONNECTION) (task_id : int) = 
+  let* first = Conn.exec query_delete_task1 task_id in 
+  match first with 
+  | Error e -> Lwt.return (Error e)
+  | Ok _ -> Conn.exec query_delete_task2 task_id
 
 module IdMap = Map.Make(Int)
 
 type task_manager_data = {
     task_types : (string * TaskManager.task_type) array;
-    task_running_instances : TaskManager.task IdMap.t;
+    mutable task_running_instances : TaskManager.task IdMap.t;
     database_connection : Caqti_lwt.connection;
   }
 
@@ -106,20 +114,60 @@ module Make
   let initial = Init.initial
 
   (* val add_task : t -> string -> int -> TaskManager.task -> unit Lwt.t  *)
+  let add_task (tman : t) (name : string) (type_id : int) (task : TaskManager.task) : unit Lwt.t = 
+    let* id = add_task tman.database_connection name type_id (TaskManager.settings task) in
+    tman.task_running_instances <- IdMap.add id task tman.task_running_instances;
+    Lwt.return ()
 
   (* val remove_task : t -> int -> unit Lwt.t *)
+  let remove_task (tman : t) (id : int) : unit Lwt.t =
+    let* _ = delete_task tman.database_connection id in 
+    tman.task_running_instances <- IdMap.remove id tman.task_running_instances;
+    Lwt.return ()
     
   (* val task_types : t -> task_type_data list Lwt.t *)
+  let task_types (tman : t) : TaskManagerData.task_type_data list Lwt.t = 
+    tman.task_types 
+      |> Array.to_list
+      |> List.mapi (fun i (name, task_type) ->  TaskManagerData.{ 
+        task_type_id = i;
+        name;
+        task_type;})
+      |> Lwt.return 
 
   (* val tasks : t -> task_data list Lwt.t *)
+  let tasks (tman : t) : TaskManagerData.task_data list Lwt.t = 
+    let* tasks = get_tasks tman.database_connection in 
+    tasks 
+      |> List.map (fun (task_id, type_id, name, _) -> 
+        TaskManagerData.{
+          task_id;
+          task_type_id = type_id;
+          name;
+          task = IdMap.find task_id tman.task_running_instances;
+        })
+      |> Lwt.return
 
   (* val task_type_by_id : t -> int -> task_type_data Lwt.t  *)
+  let task_type_by_id (tman : t) (tid : int) : TaskManagerData.task_type_data Lwt.t = 
+    let (name, task_type) = Array.get tman.task_types tid in 
+    Lwt.return TaskManagerData.{
+      task_type_id = tid;
+      name;
+      task_type;
+    }
 
   (* val task_by_id : t -> int -> task_data Lwt.t *)
+  let task_by_id (tman : t) (task_id : int) : TaskManagerData.task_data Lwt.t =
+    let* (task_id, task_type_id, name, _) = get_task_by_id tman.database_connection task_id in 
+    Lwt.return TaskManagerData.{
+      task_id;
+      task_type_id;
+      name;
+      task = IdMap.find task_id tman.task_running_instances;
+    }
 
 end 
-
-module type TT = sig val initial : task_manager_data end
 
 let restore_from_database (msend : Scheduler.message_sender) (type_list : (string * TaskManager.task_type) list) = 
   (* do db connection *)
@@ -147,8 +195,6 @@ let restore_from_database (msend : Scheduler.message_sender) (type_list : (strin
       |> List.to_seq
       |> IdMap.of_seq
   in
-  (* let task_running_instances = IdMap.of_seq running_instances_list in *)
-  (* TODO reinstantiate existing tasks*)
   let _ = () in 
   Lwt.return (module Make (struct 
   let initial = {
@@ -156,4 +202,4 @@ let restore_from_database (msend : Scheduler.message_sender) (type_list : (strin
     task_types = Array.of_list type_list;
     task_running_instances;
   }
-  end) : TT)
+  end) : S)
