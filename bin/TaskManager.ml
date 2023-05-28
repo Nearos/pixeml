@@ -4,6 +4,7 @@ type task_setting_type
     = Time
     | Int 
     | String
+    | DaySchedule
 
 type task_settings_template = (string * task_setting_type) list
 type task_settings = (string * string) list
