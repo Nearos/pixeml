@@ -22,6 +22,7 @@ let stringify_setting_type =
   | String -> "string"
   | Time -> "time"
   | Int -> "int"
+  | DaySchedule -> "day_schedule"
 
 let jsonify_settings_template (settings_template : TaskManager.task_settings_template ) : string = 
   let stringified = List.map (fun (a, b) -> (a, stringify_setting_type b)) settings_template in 

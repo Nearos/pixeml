@@ -59,10 +59,65 @@ end
 module Event = struct 
     type action = unit -> unit
 
+    type weekday 
+        = Monday
+        | Tuesday
+        | Wednesday
+        | Thursday
+        | Friday
+        | Saturday
+        | Sunday
+
+    type day_schedule 
+        = EveryDay
+        | Weekday of weekday 
+        | EveryNDays of int
+        | Or of day_schedule list 
+        | And of day_schedule list
+
+    let day_schedule_of_string (ipt : string) : day_schedule = 
+        match String.lowercase_ascii ipt with 
+        | "monday"
+        | "mondays" -> Weekday Monday
+        | "tuesday"
+        | "tuesdays" -> Weekday Tuesday
+        | "wednesday"
+        | "wednesdays" -> Weekday Wednesday
+        | "thursday" 
+        | "thursdays" -> Weekday Thursday
+        | "friday"
+        | "fridays" -> Weekday Friday
+        | "saturday"
+        | "satrudays" -> Weekday Saturday
+        | "sunday"
+        | "sundays" -> Weekday Sunday 
+        | "" -> EveryDay
+        | _ -> 
+            if String.for_all (function | '0' .. '9' -> true | _ ->  false ) ipt
+            then EveryNDays (int_of_string ipt)
+            else EveryDay
+
+    let rec is_on_day (time : Unix.tm) (sched : day_schedule): bool =
+        match sched with 
+        | EveryDay -> true
+        | EveryNDays n -> 
+            let (time_since_epoch, _) = Unix.mktime time 
+            in int_of_float (time_since_epoch /. 24.) mod n = 0
+        | Weekday Sunday -> time.tm_wday = 0
+        | Weekday Monday -> time.tm_wday = 1
+        | Weekday Tuesday -> time.tm_wday = 2
+        | Weekday Wednesday -> time.tm_wday = 3
+        | Weekday Thursday -> time.tm_wday = 4 
+        | Weekday Friday -> time.tm_wday = 5 
+        | Weekday Saturday -> time.tm_wday = 6 
+        | Or opts -> List.exists (is_on_day time) opts
+        | And opts -> List.for_all (is_on_day time) opts
+
     type scheduled_event = {
             action : action;
             id : int;
             time : TimeOfDay.t;
+            day_schedule : day_schedule;
         }
     
     type t = scheduled_event
@@ -89,9 +144,10 @@ module SchedulerQueues = struct
 
     let insert (event : Event.t) (queues : scheduler_queues) : unit =
         let open TimeOfDay in
-        if event.time < now () 
-        then queues.events_for_tomorrow := Batteries.Vect.append event !(queues.events_for_tomorrow)
-        else EventQueue.insert event queues.queue
+        queues.events_for_tomorrow := Batteries.Vect.append event !(queues.events_for_tomorrow);
+        if event.time >= now () && Event.(is_on_day (Unix.gettimeofday () |> Unix.localtime) event.day_schedule)
+        then EventQueue.insert event queues.queue
+        else ()
     
     let pop (queues : t) = EventQueue.pop queues.queue
 
@@ -101,11 +157,12 @@ module SchedulerQueues = struct
         queues.events_for_tomorrow := Batteries.Vect.append event !(queues.events_for_tomorrow)
 
     let restore_for_today (queues : t) =
+        let today = Unix.gettimeofday () |> Unix.localtime in
         let _ = Batteries.Vect.map 
-            (fun event -> EventQueue.insert event queues.queue)
+            (fun event -> if Event.(is_on_day today event.day_schedule) then EventQueue.insert event queues.queue else ())
             !(queues.events_for_tomorrow)
         in
-        queues.events_for_tomorrow := Batteries.Vect.empty
+        () (* queues.events_for_tomorrow := Batteries.Vect.empty *)
 
     let remove (pred : Event.t -> bool) (queues : t) = 
         try 
@@ -139,12 +196,12 @@ let rec perform
             perform queues)
         else (* wait for tomorrow *)
             float_of_int seconds_until_midnight
-    | Some ({time ; action; _} as evt) -> 
+    | Some {time ; action; _} -> 
         let seconds_until  = to_seconds (time - now ()) in 
         if seconds_until < 1 
         then (
             let  _ = SchedulerQueues.pop queues in 
-            SchedulerQueues.set_for_tomorrow evt queues;
+            (* SchedulerQueues.set_for_tomorrow evt queues; *)
             action ();
             perform queues
         )
@@ -166,6 +223,7 @@ let test_event time id =
                     ^ " at: " ^ TimeOfDay.to_string (TimeOfDay.now ())));
         time;
         id;
+        day_schedule = EveryDay;
     }
 
 let scheduler (message_in : message Lwt_mvar.t) = 
