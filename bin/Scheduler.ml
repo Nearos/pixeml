@@ -93,7 +93,7 @@ module Event = struct
         | "sundays" -> Weekday Sunday 
         | "" -> EveryDay
         | _ -> 
-            if String.for_all (function | '0' .. '9' -> true | _ ->  false ) ipt
+            if String.to_seq ipt |> Seq.fold_left (fun b v -> if not b then false else match v with | '0' .. '9' -> true | _ ->  false ) true
             then EveryNDays (int_of_string ipt)
             else EveryDay
 
