@@ -8,12 +8,12 @@ let task_t id_gen =
       let time_setting = 
         settings 
         |> List.assoc "Time"
-      in match Scheduler.TimeOfDay.of_string time_setting with 
-      | Some time ->
+      in match time_setting with 
+      | Time time ->
         let id = id_gen () in
         let* () = Lwt_mvar.put msend (Scheduler.ScheduleTest (time, id)) in 
         Lwt.return [id]
-      | None -> Lwt.return []
+      | _ -> Lwt.return []
         
 
 } 

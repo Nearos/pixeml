@@ -9,16 +9,16 @@ let jsonify_list lst =
     | item :: items -> jsonify_list (acc ^ item ^ ", ") items 
   in jsonify_list "" lst 
 
-let jsonify_settings (settings : TaskManager.task_settings) : string = 
+let jsonify_settings (settings : (string * string) list) : string = 
   let jsonify_setting (key, value) = 
     "[\"" ^ key ^"\", \"" ^ value ^ "\"]"
   in 
   let content = List.map jsonify_setting settings |> jsonify_list in
   "[" ^ content ^ "]"
 
-let stringify_setting_type = 
+let stringify_setting_type (s_type : TaskManager.task_setting_type) = 
   let open TaskManager in 
-  function
+  match s_type with
   | String -> "string"
   | Time -> "time"
   | Int -> "int"

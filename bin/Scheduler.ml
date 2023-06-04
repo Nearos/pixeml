@@ -97,6 +97,21 @@ module Event = struct
             then EveryNDays (int_of_string ipt)
             else EveryDay
 
+    let rec day_schedule_to_string day_schedule = 
+        match day_schedule with 
+        | Weekday Sunday -> "Sunday"
+        | Weekday Monday -> "Monday"
+        | Weekday Tuesday -> "Tuesday"
+        | Weekday Wednesday -> "Wednesday"
+        | Weekday Thursday -> "Thursday"
+        | Weekday Friday -> "Friday"
+        | Weekday Saturday -> "Saturday"
+        | EveryDay -> ""
+        | EveryNDays n -> string_of_int n 
+        | And list -> "and (" ^ List.fold_left (fun a b -> a ^ ", " ^ b) "" (List.map day_schedule_to_string list) ^ ")"
+        | Or list -> "or (" ^ List.fold_left (fun a b -> a ^ ", " ^ b) "" (List.map day_schedule_to_string list) ^ ")"
+
+
     let rec is_on_day (time : Unix.tm) (sched : day_schedule): bool =
         match sched with 
         | EveryDay -> true
