@@ -165,14 +165,14 @@ module SchedulerQueues = struct
         () (* queues.events_for_tomorrow := Batteries.Vect.empty *)
 
     let remove (pred : Event.t -> bool) (queues : t) = 
-        try 
+        (try 
             let index_to_remove = EventQueue.find pred queues.queue in
             EventQueue.remove index_to_remove queues.queue
-        with Not_found -> 
-            try 
-                let index_to_remove = Batteries.Vect.findi pred !(queues.events_for_tomorrow) in 
-                queues.events_for_tomorrow := Batteries.Vect.remove index_to_remove 1 !(queues.events_for_tomorrow)
-            with Not_found -> ()
+        with Not_found -> ());
+        try 
+            let index_to_remove = Batteries.Vect.findi pred !(queues.events_for_tomorrow) in 
+            queues.events_for_tomorrow := Batteries.Vect.remove index_to_remove 1 !(queues.events_for_tomorrow)
+        with Not_found -> ()
 end
 
 type message

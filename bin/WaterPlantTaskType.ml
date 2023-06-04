@@ -2,7 +2,7 @@ open Lwt.Syntax
 
 let task_t id_gen =
   TaskManager.{
-    settings = [("Time", TaskManager.Time); ("Duration", TaskManager.Int); ("Raspberry Pi Pin", TaskManager.Int); ("Day Schedule", TaskManager.DaySchedule)];
+    settings = [("Time", TaskManager.Time); ("Duration", TaskManager.Int); ("WiringPi Pin", TaskManager.Int); ("Day Schedule", TaskManager.DaySchedule)];
     instantiate = 
       fun (msend : Scheduler.message_sender) (settings : task_settings) : int list Lwt.t -> 
         match settings |> List.assoc "Time" |> Scheduler.TimeOfDay.of_string with 
