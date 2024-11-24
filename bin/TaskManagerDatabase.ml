@@ -14,19 +14,19 @@ let query_create_table2 =
   "CREATE TABLE IF NOT EXISTS task_settings (task_id int, key varchar(255), value varchar(255))"
 
 let query_list_tasks = 
-  unit ->* tup3 int int string @@
+  unit ->* t3 int int string @@
   "SELECT * FROM tasks"
 
 let query_task_settings = 
-  int ->* tup2 string string @@
+  int ->* t2 string string @@
   "SELECT key, value FROM task_settings WHERE task_id = ?"
 
 let query_task_by_id = 
-  int ->? tup3 int int string @@
+  int ->? t3 int int string @@
   "SELECT * FROM tasks WHERE id = ?" 
 
 let query_add_task = 
-  tup2 int string ->? int @@
+  t2 int string ->? int @@
   "INSERT INTO tasks (type_id, name) VALUES (?, ?) RETURNING id"
 
 let query_delete_task1 = 
@@ -38,7 +38,7 @@ let query_delete_task2 =
   "DELETE FROM task_settings WHERE task_id = ?"
 
 let query_add_setting = 
-  tup3 int string string ->. unit @@
+  t3 int string string ->. unit @@
   "INSERT INTO task_settings (task_id, key, value) VALUES (?, ?, ?)"
 
 let get_task_settings (module Conn : Caqti_lwt.CONNECTION) ((task_id, type_id, name) : (int * int * string)) =
@@ -172,7 +172,7 @@ end
 let restore_from_database (msend : Scheduler.message_sender) (type_list : (string * TaskManager.task_type) list) = 
   (* do db connection *)
   let* database_connection = 
-    let* connection_result = Caqti_lwt.connect (Uri.of_string "postgresql://pixeml:pixeml_nine_1_seven@localhost:5432/pixeml_tasks") in 
+    let* connection_result = Caqti_lwt_unix.connect (Uri.of_string "postgresql://pixeml:pixeml_nine_1_seven@localhost:5432/pixeml_tasks") in 
     match connection_result with
     | Ok conn -> Lwt.return conn
     | Error _ -> failwith "Failed to connect to database"
